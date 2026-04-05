@@ -1,3 +1,4 @@
+
 #Overview
 This project implements a Movie Question Answering (QA) System that leverages Natural Language Processing (NLP) techniques and Graph Databases to answer queries based on a large movie dataset. It processes over 200,000 movie records from TMDB and builds a knowledge graph using Neo4j, a graph database. The system enables users to ask questions such as "Who directed Inception?" or "What are the top-rated action movies?", and retrieve answers in real time using Cypher, Neo4j’s query language.
 
@@ -27,3 +28,7 @@ Cypher Query Generation and Execution: Converted parsed queries into Cypher quer
   Cypher: Query language used to query the graph database.
   Neo4j Admin Bulk Import: Tool for efficiently importing large datasets into Neo4j.
   Stanza: Python NLP library for extracting semantic triples.
+=======
+# Movie-QA-System-NLP-Neo4j
+An intelligent movie question answering system that uses Natural Language Processing and Neo4j graph databases to retrieve movie information from the TMDB 5000 dataset.
+>>>>>>> 3d00b4c6e2bc51362f1880ab4000f56440683f50
