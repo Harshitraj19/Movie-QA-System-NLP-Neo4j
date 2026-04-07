@@ -1,9 +1,6 @@
 from neo4j import GraphDatabase
-import re
 
-# -----------------------------
-# Neo4j Connection
-# -----------------------------
+# Neo4j connection
 driver = GraphDatabase.driver(
     "neo4j://127.0.0.1:7687",
     auth=("neo4j", "12345678")
@@ -14,101 +11,149 @@ print("✅ Neo4j connected successfully")
 
 
 def answer_question(question: str):
-    q = question.lower().strip()
+    q = question.lower().strip().replace("?", "").replace('"', "")
 
     with driver.session() as session:
 
         # -----------------------------
-        # RELEASE DATE
+        # DIRECTOR
         # -----------------------------
-        if "release" in q or "released" in q:
-            movie_match = re.search(r'\"([^\"]+)\"', question)
+        if "who directed" in q:
+            movie = q.replace("who directed", "").strip()
 
-            if movie_match:
-                movie = movie_match.group(1)
+            result = session.run("""
+                MATCH (d:Director)-[:DIRECTED]->(m:Movie)
+                WHERE toLower(m.title) CONTAINS $movie
+                RETURN d.name AS director
+                LIMIT 1
+            """, movie=movie)
 
-                result = session.run(
-                    """
-                    MATCH (m:Movie)
-                    WHERE toLower(m.title) = toLower($movie)
-                    RETURN m.release_date AS date
-                    """,
-                    movie=movie
-                )
-
-                row = result.single()
-
-                if row and row["date"]:
-                    return f"🎬 {movie} was released on {row['date']}"
-
-                return f"❌ Could not find release date for {movie}"
-
-            return '⚠️ Put movie name in quotes, example: "Inception"'
-
+            row = result.single()
+            return f"🎬 Director: {row['director']}" if row else "❌ Not found"
 
         # -----------------------------
-        # RATING
+        # ACTORS
         # -----------------------------
-        if "rating" in q or "score" in q:
-            movie_match = re.search(r'\"([^\"]+)\"', question)
+        if "who acted in" in q:
+            movie = q.replace("who acted in", "").strip()
 
-            if movie_match:
-                movie = movie_match.group(1)
+            result = session.run("""
+                MATCH (a:Actor)-[:ACTED_IN]->(m:Movie)
+                WHERE toLower(m.title) CONTAINS $movie
+                RETURN a.name AS actor
+                LIMIT 5
+            """, movie=movie)
 
-                result = session.run(
-                    """
-                    MATCH (m:Movie)
-                    WHERE toLower(m.title) = toLower($movie)
-                    RETURN m.rating AS rating
-                    """,
-                    movie=movie
-                )
-
-                row = result.single()
-
-                if row:
-                    return f"⭐ {movie} rating is {row['rating']}"
-
-                return f"❌ Could not find rating for {movie}"
-
-            return '⚠️ Put movie name in quotes, example: "Avatar"'
-
+            actors = [r["actor"] for r in result]
+            return "👥 Actors: " + ", ".join(actors) if actors else "❌ Not found"
 
         # -----------------------------
-        # MOVIE OVERVIEW
+        # GENRE
+        # -----------------------------
+        if "which movies are" in q:
+            genre = q.replace("which movies are", "").strip()
+
+            result = session.run("""
+                MATCH (m:Movie)-[:BELONGS_TO]->(g:Genre)
+                WHERE toLower(g.name) CONTAINS $genre
+                RETURN m.title AS movie
+                LIMIT 10
+            """, genre=genre)
+
+            movies = [r["movie"] for r in result]
+            return "🎭 Movies: " + ", ".join(movies) if movies else "❌ Not found"
+
+        # -----------------------------
+        # TOP 10 MOVIES
+        # -----------------------------
+        if "top 10 movies" in q:
+            result = session.run("""
+                MATCH (m:Movie)
+                RETURN m.title AS movie, m.rating AS rating
+                ORDER BY rating DESC
+                LIMIT 10
+            """)
+
+            movies = [f"{r['movie']} ({r['rating']})" for r in result]
+            return "⭐ Top 10 Movies:\n" + "\n".join(movies)
+
+        # -----------------------------
+        # MOVIES BY YEAR
+        # -----------------------------
+        if "movies in" in q:
+            year = q.replace("movies in", "").strip()
+
+            result = session.run("""
+                MATCH (m:Movie)
+                WHERE m.release_date STARTS WITH $year
+                RETURN m.title AS movie
+                LIMIT 10
+            """, year=year)
+
+            movies = [r["movie"] for r in result]
+            return f"📅 Movies in {year}: " + ", ".join(movies) if movies else "❌ Not found"
+
+        # -----------------------------
+        # OVERVIEW
         # -----------------------------
         if "tell me about" in q:
             movie = q.replace("tell me about", "").strip()
 
-            result = session.run(
-                """
+            result = session.run("""
                 MATCH (m:Movie)
                 WHERE toLower(m.title) CONTAINS $movie
                 RETURN m.title AS title, m.overview AS overview
                 LIMIT 1
-                """,
-                movie=movie
-            )
+            """, movie=movie)
 
             row = result.single()
-
-            if row:
-                return f"🎬 {row['title']}:\n{row['overview']}"
-
-            return "❌ Movie not found"
-
+            return f"🎬 {row['title']}:\n{row['overview']}" if row else "❌ Movie not found"
 
         # -----------------------------
-        # DEFAULT
+        # RATING
         # -----------------------------
-        return "❌ Sorry, I can answer release date, rating, and movie overview questions only."
+        if "rating" in q:
+            movie = q.replace("what is", "").replace("rating", "").strip()
+
+            result = session.run("""
+                MATCH (m:Movie)
+                WHERE toLower(m.title) CONTAINS $movie
+                RETURN m.title AS title, m.rating AS rating
+                LIMIT 1
+            """, movie=movie)
+
+            row = result.single()
+            return f"⭐ {row['title']} rating: {row['rating']}" if row else "❌ Movie not found"
+
+        # -----------------------------
+        # RELEASE DATE
+        # -----------------------------
+        if "released" in q:
+            movie = q.replace("when was", "").replace("released", "").strip()
+
+            result = session.run("""
+                MATCH (m:Movie)
+                WHERE toLower(m.title) CONTAINS $movie
+                RETURN m.title AS title, m.release_date AS date
+                LIMIT 1
+            """, movie=movie)
+
+            row = result.single()
+            return f"📆 {row['title']} released on {row['date']}" if row else "❌ Movie not found"
+
+        return "❌ Sorry, question type not supported."
 
 
 print("\n🎬 Movie QA System Ready!")
-print('Examples:')
-print(' - When was "Inception" released?')
-print(' - What is "Avatar" rating?')
-print(' - Tell me about Titanic')
+print("Examples:")
+print(" - Who directed Titanic?")
+print(" - Who acted in Titanic?")
+print(" - Which movies are Action?")
+print(" - Show top 10 movies")
+print(" - Movies in 2010?")
+print(" - Tell me about Titanic")
+print(" - What is Titanic rating?")
+print(" - When was Titanic released?")
 print()
 
 while True:

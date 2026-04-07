@@ -7,7 +7,7 @@ warnings.filterwarnings("ignore", category=FutureWarning, module="thinc.shims.py
 
 
 # Load the transformer-based English model
-nlp = spacy.load('en_core_web_trf')
+nlp = spacy.load('en_core_web_sm')
 
 # Define intent patterns
 INTENT_PATTERNS = [
